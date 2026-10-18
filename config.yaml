@@ -1,0 +1,35 @@
+# ============ 巡检目标 ============
+# 默认监控本机（WSL/Ubuntu 里的 nginx），可以按同样格式添加更多目标
+targets:
+  - name: web-server
+    host: 127.0.0.1
+    ports: [80]
+    http_url: http://127.0.0.1/
+    service: nginx                          # 被监控的服务名
+    disk_mounts: ["/", "/mnt/inspect_disk"] # /mnt/inspect_disk 是 setup.sh 建的 100MB 测试盘
+
+# ============ 巡检参数 ============
+inspection:
+  interval_seconds: 60    # 每隔多少秒巡检一次
+  ping_count: 3           # 每次 ping 几个包
+  timeout_seconds: 3      # 端口/网页检测的超时时间
+
+# ============ 告警参数 ============
+alert:
+  history_window: 50      # 动态阈值参考最近多少条"正常"历史数据
+  min_history: 10         # 历史数据少于这么多条时，改用固定阈值
+  sigma: 3                # 动态阈值 = 均值 + max(sigma × 标准差, latency_floor_ms)
+  latency_floor_ms: 20    # 时延至少比均值高出 20ms 才告警（本机时延极小，防止误报）
+  static_latency_ms: 200  # 历史不足时使用的固定时延阈值
+  loss_threshold: 20      # 丢包率 ≥ 20% 告警
+  disk_threshold: 90      # 磁盘使用率 ≥ 90% 告警
+  webhook_url: ""         # 企业微信/钉钉/飞书群机器人地址，留空则不推送
+  webhook_type: wecom     # wecom / dingtalk / feishu
+
+# ============ 大模型参数 ============
+llm:
+  base_url: https://api.deepseek.com
+  model: deepseek-chat              # 以 DeepSeek 官方文档当前的模型名为准
+  api_key_env: DEEPSEEK_API_KEY     # API Key 放在这个环境变量里，不要写进代码
+  max_steps: 10                     # AI 最多调用几轮工具（复合故障需要更多步）
+  log_filter: true                  # true：日志工具只返回"上次巡检正常"之后的记录；false：旧版直接 tail（会读到历史记录）
